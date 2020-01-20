@@ -126,9 +126,6 @@ Router.prototype.dispatchRequest = function(path, req, res) {
     function getNextMiddleware() {
         var blankFunction = function() {};
 
-        // IF the response has been sent request processing will terminate after blankFunction is called
-        if (isResponseSent) return blankFunction;
-
         var nextMiddleware = this.middleware[currentHandler++];
 
         // Once all the middleware are processed, hand over the "next" to getNextEndpoint function
@@ -141,14 +138,12 @@ Router.prototype.dispatchRequest = function(path, req, res) {
 
         // returns a function that calls the middleware
         return function() {
-            nextMiddleware(req, res, getNext());
+            if (isResponseSent) return;
+            else nextMiddleware(req, res, getNext());
         };
     }
 
     function getNextEndpoint() {
-        // IF the response has been sent request processing will terminate after blankFunction is called
-        if (isResponseSent) return function() {};
-
         // looping the stack and looking for a matching endpoint
         while ((nextStackItem = this.stack[currentHandler++])) {
             // IF ROUTER, partial path matching should be done
@@ -164,6 +159,7 @@ Router.prototype.dispatchRequest = function(path, req, res) {
                 req.path = nextPath;
 
                 return function() {
+                    if (isResponseSent) return;
                     nextStackItem.router.dispatchRequest(nextPath, req, res);
                 };
             }
@@ -174,7 +170,8 @@ Router.prototype.dispatchRequest = function(path, req, res) {
                 Paths.matchPaths(path, nextStackItem.path)
             ) {
                 return function() {
-                    nextStackItem.callback(req, res, getNext());
+                    if (isResponseSent) return;
+                    else nextStackItem.callback(req, res, getNext());
                 };
             }
         }

@@ -52,9 +52,10 @@ describe('Router', function() {
             });
 
             // this middleware is sending the response so the request processing should stop here
-            router.registerMiddleware(function(_req, res, _next) {
+            router.registerMiddleware(function(_req, res, next) {
                 resultOrder.push('middleware 2');
                 res.send('response is sent');
+                next();
             });
 
             router.registerMiddleware(function(_req, _res, next) {
@@ -124,13 +125,10 @@ describe('Router', function() {
             });
 
             // this endpoint is sending the response so the request processing should stop here
-            router.registerEndpoint('/user/banking', function(
-                _req,
-                res,
-                _next
-            ) {
+            router.registerEndpoint('/user/banking', function(_req, res, next) {
                 resultOrder.push('banking2');
                 res.send('endpoint::banking');
+                next();
             });
 
             router.registerEndpoint('/user/banking', function(
