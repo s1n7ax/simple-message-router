@@ -2,14 +2,8 @@ var Paths = require('./paths');
 
 /**
  * Router handles registering and invoking endpoints/middleware/nested routers
- *
- * @param {Object} opt
- * @param {boolean} opt.throwUnhandled - if true, unhandled request will be thrown
  */
-function Router(opts) {
-    opts = opts || {};
-
-    this.throwUnhandled = opts.throwUnhandled ? true : false;
+function Router() {
     this.middleware = [];
     this.stack = [];
 }
