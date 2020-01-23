@@ -17,7 +17,7 @@ function Router(opts) {
 /**
  * add middleware subscriber
  * first to register will run first
- * middleware will run on all request dispaches before any endpoint
+ * middleware will run on all request dispatches before any endpoint
  *  [ middleware ] -> [ endpoints ]
  *
  * ONLY IF next() is called within, request will proceed to next middleware or endpoint
@@ -34,7 +34,7 @@ Router.prototype.registerMiddleware = function(middleware) {
 
 /**
  * add endpoint subscriber
- * endpoints will run on request dispatches that matches it's registed path
+ * endpoints will run on request dispatches that matches it's registered path
  * endpoints will run after all router middleware are ran
  * 	[ middleware ] -> [ endpoints ]
  *
@@ -58,7 +58,7 @@ Router.prototype.registerEndpoint = function(path, callback) {
 
 /**
  * add router subscriber
- * endpoints will run on request dispatches that matches it's registed path
+ * endpoints will run on request dispatches that matches it's registered path
  * endpoints will run after all router middleware are ran
  * 	[ middleware ] -> [ endpoints ]
  *
@@ -89,30 +89,14 @@ Router.prototype.registerRouter = function(path, router) {
  * @param {{send: (data) => void}} res - response object
  */
 Router.prototype.dispatchRequest = function(path, req, res) {
-    if (!(res && res.send && typeof res.send === 'function'))
-        throw new Error('send() method is missing in res object');
-
     var path = Paths.getFormattedPath(path);
-    req.path = path;
 
-    // IF isResponseSent is true, that means response was sent from a middleware or callback
-    var isResponseSent = false;
     var currentHandler = 0;
-    var send = res.send;
     var unhandledNextEndpoint = this.throwUnhandled
         ? function() {
               throw new UnhandledRequestError();
           }
         : function() {};
-
-    /**
-     * wrap res.send callback function
-     * IF this method is called it's going to make "isResponseSent", { true }, which means response has been sent
-     */
-    res.send = function(data) {
-        isResponseSent = true;
-        return send(data);
-    };
 
     /**
      * initially getNext will return next middleware
@@ -138,8 +122,7 @@ Router.prototype.dispatchRequest = function(path, req, res) {
 
         // returns a function that calls the middleware
         return function() {
-            if (isResponseSent) return;
-            else nextMiddleware(req, res, getNext());
+            nextMiddleware(req, res, getNext());
         };
     }
 
@@ -156,10 +139,8 @@ Router.prototype.dispatchRequest = function(path, req, res) {
                 nextPath = nextPath.startsWith('/') ? nextPath : '/' + nextPath;
 
                 nextPath = Paths.getFormattedPath(nextPath);
-                req.path = nextPath;
 
                 return function() {
-                    if (isResponseSent) return;
                     nextStackItem.router.dispatchRequest(nextPath, req, res);
                 };
             }
@@ -170,8 +151,7 @@ Router.prototype.dispatchRequest = function(path, req, res) {
                 Paths.matchPaths(path, nextStackItem.path)
             ) {
                 return function() {
-                    if (isResponseSent) return;
-                    else nextStackItem.callback(req, res, getNext());
+                    nextStackItem.callback(req, res, getNext());
                 };
             }
         }

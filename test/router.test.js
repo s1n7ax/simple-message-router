@@ -16,265 +16,192 @@ describe('Router', function() {
     describe('dispatchRequest()', function() {
         // ------ middleware calling order
         it('should call all the middleware before endpoint', function() {
-            var resultOrder = [];
+            var dispatchOrder = [];
 
             router.registerMiddleware(function(_req, _res, next) {
-                resultOrder.push('middleware 1');
+                dispatchOrder.push('middleware 1');
                 next();
             });
 
             router.registerMiddleware(function(_req, _res, next) {
-                resultOrder.push('middleware 2');
+                dispatchOrder.push('middleware 2');
                 next();
             });
 
-            router.registerEndpoint('/user', function(_req, res, _next) {
-                resultOrder.push('endpoint');
-                res.send('endpoint::user');
+            router.registerEndpoint('/path', function(_req, res, _next) {
+                dispatchOrder.push('endpoint');
+                res.send('endpoint');
             });
 
-            router.dispatchRequest('/user', {}, responseObj);
+            router.dispatchRequest('/path', {}, responseObj);
 
-            assert.deepEqual(resultOrder, [
+            assert.deepEqual(dispatchOrder, [
                 'middleware 1',
                 'middleware 2',
                 'endpoint'
             ]);
         });
 
-        // ------ middleware termination
-        it('should terminate request processing if middleware sent the response', function() {
-            var resultOrder = [];
+        it('should continue request processing even after middleware sent the response', function() {
+            var dispatchOrder = [];
 
             router.registerMiddleware(function(_req, _res, next) {
-                resultOrder.push('middleware 1');
+                dispatchOrder.push('middleware 1');
                 next();
             });
 
-            // this middleware is sending the response so the request processing should stop here
             router.registerMiddleware(function(_req, res, next) {
-                resultOrder.push('middleware 2');
-                res.send('response is sent');
+                dispatchOrder.push('middleware 2');
+                res.send('middleware 2');
                 next();
             });
 
             router.registerMiddleware(function(_req, _res, next) {
-                resultOrder.push('middleware 3');
+                dispatchOrder.push('middleware 3');
                 next();
             });
 
-            router.registerEndpoint('/user', function(_req, res, _next) {
-                resultOrder.push('endpoint');
-                res.send('endpoint::user');
+            router.registerEndpoint('/path', function(_req, res, _next) {
+                dispatchOrder.push('endpoint');
+                res.send('endpoint');
+            });
+
+            router.dispatchRequest('/path', {}, responseObj);
+
+            assert.deepEqual(dispatchOrder, [
+                'middleware 1',
+                'middleware 2',
+                'middleware 3',
+                'endpoint'
+            ]);
+        });
+
+        it('should continue request processing even after endpoint sent the response', function() {
+            var dispatchOrder = [];
+
+            router.registerMiddleware(function(_req, _res, next) {
+                dispatchOrder.push('middleware');
+                next();
+            });
+
+            router.registerEndpoint('/user', function(_req, res, next) {
+                dispatchOrder.push('user 1');
+                res.send();
+                next();
+            });
+
+            router.registerEndpoint('/user', function(_req, _res, next) {
+                dispatchOrder.push('user 2');
+                next();
             });
 
             router.dispatchRequest('/user', {}, responseObj);
 
-            assert.deepEqual(resultOrder, ['middleware 1', 'middleware 2']);
+            assert.deepEqual(dispatchOrder, ['middleware', 'user 1', 'user 2']);
         });
 
         it('should terminate request processing if middleware did not call next()', function() {
-            var resultOrder = [];
+            var dispatchOrder = [];
 
             router.registerMiddleware(function(_req, _res, next) {
-                resultOrder.push('middleware 1');
+                dispatchOrder.push('middleware 1');
                 next();
             });
 
             // this middleware is not calling next so the request processing should stop here
             router.registerMiddleware(function(_req, _res, _next) {
-                resultOrder.push('middleware 2');
+                dispatchOrder.push('middleware 2');
             });
 
             router.registerMiddleware(function(_req, _res, next) {
-                resultOrder.push('middleware 3');
+                dispatchOrder.push('middleware 3');
                 next();
             });
 
-            router.registerEndpoint('/user', function(_req, res, _next) {
-                resultOrder.push('endpoint');
-                res.send('endpoint::user');
+            router.registerEndpoint('/path', function(_req, res, _next) {
+                dispatchOrder.push('endpoint');
+                res.send('endpoint');
+            });
+
+            router.dispatchRequest('/path', {}, responseObj);
+
+            assert.deepEqual(dispatchOrder, ['middleware 1', 'middleware 2']);
+        });
+
+        // ------ endpoint termination
+        it('should terminate request processing if endpoint did not call next()', function() {
+            var dispatchOrder = [];
+
+            router.registerMiddleware(function(_req, _res, next) {
+                dispatchOrder.push('middleware');
+                next();
+            });
+
+            router.registerEndpoint('/user', function(_req, _res, next) {
+                dispatchOrder.push('user 1');
+            });
+
+            router.registerEndpoint('/user', function(_req, _res, next) {
+                dispatchOrder.push('user 2');
+                next();
             });
 
             router.dispatchRequest('/user', {}, responseObj);
 
-            assert.deepEqual(resultOrder, ['middleware 1', 'middleware 2']);
-        });
-
-        // ------ endpoint termination
-        it('should terminate request processing if endpoint sent the response', function() {
-            var resultOrder = [];
-
-            router.registerMiddleware(function(_req, _res, next) {
-                resultOrder.push('middleware');
-                next();
-            });
-
-            router.registerEndpoint('/user', function(_req, _res, next) {
-                resultOrder.push('user');
-                next();
-            });
-
-            router.registerEndpoint('/user/banking', function(
-                _req,
-                _res,
-                next
-            ) {
-                resultOrder.push('banking1');
-                next();
-            });
-
-            // this endpoint is sending the response so the request processing should stop here
-            router.registerEndpoint('/user/banking', function(_req, res, next) {
-                resultOrder.push('banking2');
-                res.send('endpoint::banking');
-                next();
-            });
-
-            router.registerEndpoint('/user/banking', function(
-                _req,
-                res,
-                _next
-            ) {
-                resultOrder.push('banking3');
-                res.send('endpoint::banking');
-            });
-
-            router.registerEndpoint('/user/banking/loans', function(
-                _req,
-                res,
-                _next
-            ) {
-                resultOrder.push('loans');
-                res.send('endpoint::loans');
-            });
-
-            router.dispatchRequest('/user/banking', {}, responseObj);
-
-            assert.deepEqual(resultOrder, [
-                'middleware',
-                'banking1',
-                'banking2'
-            ]);
-        });
-
-        it('should terminate request processing if endpoint did not call next()', function() {
-            var resultOrder = [];
-
-            router.registerMiddleware(function(_req, _res, next) {
-                resultOrder.push('middleware');
-                next();
-            });
-
-            router.registerEndpoint('/user', function(_req, _res, next) {
-                resultOrder.push('user');
-                next();
-            });
-
-            router.registerEndpoint('/user/banking', function(
-                _req,
-                _res,
-                next
-            ) {
-                resultOrder.push('banking1');
-                next();
-            });
-
-            // this endpoint is not calling next() so the request processing should stop here
-            router.registerEndpoint('/user/banking', function(
-                _req,
-                _res,
-                _next
-            ) {
-                resultOrder.push('banking2');
-            });
-
-            router.registerEndpoint('/user/banking', function(
-                _req,
-                _res,
-                _next
-            ) {
-                resultOrder.push('banking3');
-            });
-
-            router.registerEndpoint('/user/banking/loans', function(
-                _req,
-                res,
-                _next
-            ) {
-                resultOrder.push('loans');
-                res.send('loans');
-            });
-
-            router.registerEndpoint('/user/banking/loans', function(
-                _req,
-                res,
-                _next
-            ) {
-                resultOrder.push('loans');
-                res.send('loans');
-            });
-
-            router.dispatchRequest('/user/banking', {}, responseObj);
-
-            assert.deepEqual(resultOrder, [
-                'middleware',
-                'banking1',
-                'banking2'
-            ]);
+            assert.deepEqual(dispatchOrder, ['middleware', 'user 1']);
         });
 
         // ------ middleware only routers
         it('should support middleware only routers', function() {
-            var resultOrder = [];
+            var dispatchOrder = [];
 
             router.registerMiddleware(function(_req, _res, next) {
-                resultOrder.push('middleware1');
+                dispatchOrder.push('middleware 1');
                 next();
             });
             router.registerMiddleware(function(_req, _res, next) {
-                resultOrder.push('middleware2');
+                dispatchOrder.push('middleware 2');
                 next();
             });
             router.registerMiddleware(function(_req, _res, next) {
-                resultOrder.push('middleware3');
+                dispatchOrder.push('middleware 3');
                 next();
             });
-            router.registerMiddleware(function(_req, res, _next) {
-                resultOrder.push('middleware4');
-                res.send('send response');
+            router.registerMiddleware(function(_req, res, next) {
+                dispatchOrder.push('middleware 4');
+                next();
             });
             router.dispatchRequest('/', {}, responseObj);
 
-            assert.deepEqual(resultOrder, [
-                'middleware1',
-                'middleware2',
-                'middleware3',
-                'middleware4'
+            assert.deepEqual(dispatchOrder, [
+                'middleware 1',
+                'middleware 2',
+                'middleware 3',
+                'middleware 4'
             ]);
         });
 
         // ------ endpoint only routers
         it('should support endpoint only routers', function() {
-            var resultOrder = [];
+            var dispatchOrder = [];
 
             router.registerEndpoint('/user', function(_req, _res, next) {
-                resultOrder.push('user');
+                dispatchOrder.push('user');
                 next();
             });
 
             router.registerEndpoint('/banking', function(_req, _res, next) {
-                resultOrder.push('banking');
+                dispatchOrder.push('banking');
                 next();
             });
 
             router.registerEndpoint('/loans', function(_req, _res, next) {
-                resultOrder.push('loans');
+                dispatchOrder.push('loans');
                 next();
             });
 
             router.registerEndpoint('/employee', function(_req, _res, next) {
-                resultOrder.push('employee');
+                dispatchOrder.push('employee');
                 next();
             });
 
@@ -283,7 +210,7 @@ describe('Router', function() {
             router.dispatchRequest('/loans', {}, responseObj);
             router.dispatchRequest('/employee', {}, responseObj);
 
-            assert.deepEqual(resultOrder, [
+            assert.deepEqual(dispatchOrder, [
                 'user',
                 'banking',
                 'loans',
@@ -294,14 +221,13 @@ describe('Router', function() {
         // ------ request & response data passing
         it('should pass the request & response correctly', function() {
             var responseData;
+
             var request = {
                 name: 'srinesh'
             };
 
-            var response = {
-                send: function(data) {
-                    responseData = data;
-                }
+            var response = function(data) {
+                responseData = data;
             };
 
             var middleware1 = function(req, res, next) {
@@ -313,13 +239,14 @@ describe('Router', function() {
             var middleware2 = function(req, res, next) {
                 assert.equal(req, request);
                 assert.equal(res, response);
+                res({ name: 'welcome ' + req.name });
                 next();
             };
 
-            var middleware3 = function(req, res, _next) {
+            var middleware3 = function(req, res, next) {
                 assert.equal(req, request);
                 assert.equal(res, response);
-                res.send({ name: 'welcome ' + req.name });
+                next();
             };
 
             router.registerMiddleware(middleware1);
@@ -330,75 +257,87 @@ describe('Router', function() {
             assert.deepEqual(responseData, { name: 'welcome ' + request.name });
         });
 
+        it('should not be mandatory to pass request and response parameters when dispatching ', function() {
+            var dispatchOrder = [];
+
+            router.registerMiddleware(function(_req, _res, next) {
+                dispatchOrder.push('middleware 1');
+                next();
+            });
+
+            router.registerMiddleware(function(_req, _res, next) {
+                dispatchOrder.push('middleware 2');
+                next();
+            });
+
+            router.registerEndpoint('/path', function(_res, _res, next) {
+                dispatchOrder.push('path 1');
+                next();
+            });
+
+            router.registerEndpoint('/path', function(_res, _res, next) {
+                dispatchOrder.push('path 2');
+                next();
+            });
+
+            router.dispatchRequest('/path');
+
+            assert.deepEqual(dispatchOrder, [
+                'middleware 1',
+                'middleware 2',
+                'path 1',
+                'path 2'
+            ]);
+        });
+
         // ------ selecting correct endpoint
         it('should select the correct endpoint from similar first level endpoints', function() {
             var dispatchOrder = [];
 
-            var response = {
-                send: function(data) {
-                    responseData = data;
-                }
-            };
-
-            var middleware1 = function(_req, _res, next) {
-                dispatchOrder.push('middleware1');
+            router.registerEndpoint('/', function(_req, _res, next) {
+                dispatchOrder.push('root');
                 next();
-            };
+            });
 
-            var middleware2 = function(_req, _res, next) {
-                dispatchOrder.push('middleware2');
-                next();
-            };
-
-            var endpointUser = function(_req, res, _next) {
+            router.registerEndpoint('/user', function(_req, _res, next) {
                 dispatchOrder.push('user');
-                res.send();
-            };
+                next();
+            });
 
-            var endpointUserDetails = function(_req, res, _next) {
+            router.registerEndpoint('/user/details', function(
+                _req,
+                _res,
+                next
+            ) {
                 dispatchOrder.push('user details');
-                res.send();
-            };
+                next();
+            });
 
-            router.registerMiddleware(middleware1);
-            router.registerMiddleware(middleware2);
-            router.registerEndpoint('/user', endpointUser);
-            router.registerEndpoint('/user/details', endpointUserDetails);
+            router.dispatchRequest('/user');
+            assert.deepEqual(dispatchOrder, ['user']);
 
-            router.dispatchRequest('/user/details', {}, response);
-            assert.deepEqual(dispatchOrder, [
-                'middleware1',
-                'middleware2',
-                'user details'
-            ]);
-
-            dispatchOrder = [];
-            router.dispatchRequest('/user', {}, response);
-            assert.deepEqual(dispatchOrder, [
-                'middleware1',
-                'middleware2',
-                'user'
-            ]);
+            router.dispatchRequest('/user/details');
+            assert.deepEqual(dispatchOrder, ['user', 'user details']);
         });
 
         // ------ dispatch middleware in order when nested routers
         it('should run middleware in order when nested routers are present', function() {
-            var resultOrder = [];
+            var dispatchOrder = [];
             var response = '';
 
             // root  router middleware
             router.registerMiddleware(function(_req, _res, next) {
-                resultOrder.push('root::middleware1');
+                dispatchOrder.push('root::middleware1');
                 next();
             });
 
             router.registerMiddleware(function(_req, _res, next) {
-                resultOrder.push('root::middleware2');
+                dispatchOrder.push('root::middleware2');
                 next();
             });
 
             router.registerMiddleware(function(_req, _res, next) {
-                resultOrder.push('root::middleware3');
+                dispatchOrder.push('root::middleware3');
                 next();
             });
 
@@ -406,17 +345,17 @@ describe('Router', function() {
             var user = new Router();
 
             user.registerMiddleware(function(_req, _res, next) {
-                resultOrder.push('user::middleware1');
+                dispatchOrder.push('user::middleware1');
                 next();
             });
 
             user.registerMiddleware(function(_req, _res, next) {
-                resultOrder.push('user::middleware2');
+                dispatchOrder.push('user::middleware2');
                 next();
             });
 
             user.registerMiddleware(function(_req, res, _next) {
-                resultOrder.push('user::middleware3');
+                dispatchOrder.push('user::middleware3');
                 res.send('user::endpoint');
             });
 
@@ -433,7 +372,7 @@ describe('Router', function() {
             );
 
             // validation
-            assert.deepEqual(resultOrder, [
+            assert.deepEqual(dispatchOrder, [
                 'root::middleware1',
                 'root::middleware2',
                 'root::middleware3',
@@ -444,23 +383,17 @@ describe('Router', function() {
             assert.equal(response, 'user::endpoint');
         });
 
-        it('should run endpoints in order when nested routers are present', function() {
-            var resultOrder = [];
-            var response = '';
-            var responseObj = {
-                send: function(data) {
-                    response = data;
-                }
-            };
+        it('should run endpoints in nested routers', function() {
+            var dispatchOrder = [];
 
             // root  router endpoints
-            router.registerEndpoint('/', function() {
-                resultOrder.push('root::root');
+            router.registerEndpoint('/', function(_req, _res, next) {
+                dispatchOrder.push('root::root');
                 next();
             });
 
             router.registerEndpoint('/banking', function(_req, res, _next) {
-                resultOrder.push('root::banking');
+                dispatchOrder.push('root::banking');
                 res.send('root::banking');
             });
 
@@ -468,38 +401,45 @@ describe('Router', function() {
             var user = new Router();
 
             user.registerEndpoint('/', function() {
-                resultOrder.push('user::root');
+                dispatchOrder.push('user::root');
                 next();
             });
 
             user.registerEndpoint('/details', function(_req, res, _next) {
-                resultOrder.push('user::details');
+                dispatchOrder.push('user::details');
                 res.send('user::details');
             });
 
             user.registerEndpoint('/banking', function(_req, res, _next) {
-                resultOrder.push('user::banking');
+                dispatchOrder.push('user::banking');
                 res.send('user::banking');
             });
 
             router.registerRouter('/user', user);
 
-            router.dispatchRequest('/user/details', {}, responseObj);
+            router.dispatchRequest('/user/details', undefined, responseObj);
+            assert.deepEqual(dispatchOrder, ['user::details']);
 
-            // validation
-            assert.deepEqual(resultOrder, ['user::details']);
-            assert.equal(response, 'user::details');
+            router.dispatchRequest('/banking', undefined, responseObj);
+            assert.deepEqual(dispatchOrder, ['user::details', 'root::banking']);
+
+            router.dispatchRequest('/', undefined, responseObj);
+            assert.deepEqual(dispatchOrder, [
+                'user::details',
+                'root::banking',
+                'root::root'
+            ]);
         });
 
+        /** @todo
+         * commenting this out temporary
+         * error handling still pending
+         *  
         it('should throw on unhandled requests if throwUnhandled is true', function() {
             var router = new Router({
                 throwUnhandled: true
             });
             var dispatchOrder = [];
-            var responseObj = {
-                send: function() {}
-            };
-
             router.registerMiddleware(function(_req, _res, next) {
                 dispatchOrder.push('middleware');
                 next();
@@ -510,15 +450,12 @@ describe('Router', function() {
             });
 
             assert.throws(function() {
-                router.dispatchRequest('/', {}, responseObj);
+                router.dispatchRequest('/');
             }, UnhandledRequestError);
         });
 
-        it('should not throw unhandled requests if throwUnhandled is false', function() {
+        it('should not throw on unhandled requests if throwUnhandled is false', function() {
             var dispatchOrder = [];
-            var responseObj = {
-                send: function() {}
-            };
 
             router.registerMiddleware(function(_req, _res, next) {
                 dispatchOrder.push('middleware');
@@ -531,52 +468,42 @@ describe('Router', function() {
             });
 
             assert.doesNotThrow(function() {
-                router.dispatchRequest('/', {}, responseObj);
+                router.dispatchRequest('/');
             });
         });
 
-        it('should attach path & absolutePath to request object', function() {
-            var employee = new Router();
-            var responseObj = {
-                send: function() {}
-            };
-            var dispatchOrder;
 
-            router.registerEndpoint('/user', function(req) {
+        it('should throw an UnhandledRequestError when request is unhandled', function() {
+            var router = new Router();
+            var dispatchOrder = [];
+
+            router.registerErrorHandlingMiddleware(function(error) {
+                dispatchOrder.push('error');
+                assert.equal(error.name, 'UnhandledRequestError');
+            });
+
+            router.registerMiddleware(function(_req, _res, next) {
+                dispatchOrder.push('middleware');
+                next();
+            });
+
+            router.registerEndpoint('/user', function(_req, res, _next) {
                 dispatchOrder.push('user');
-                assert.equal(req.path, '/user/');
+                res.send();
             });
 
-            router.registerEndpoint('/user/details', function(req) {
-                dispatchOrder.push('user details');
-                assert.equal(req.path, '/user/details/');
-            });
+            router.dispatchRequest('/', {}, responseObj);
 
-            employee.registerEndpoint('/details', function(req, _res, _next) {
-                dispatchOrder.push('employee details');
-                assert.equal(req.path, '/details/');
-            });
-
-            router.registerRouter('/employee', employee);
-
-            dispatchOrder = [];
-            router.dispatchRequest('/user', {}, responseObj);
-            assert.deepEqual(dispatchOrder, ['user']);
-
-            dispatchOrder = [];
-            router.dispatchRequest('/user/details', {}, responseObj);
-            assert.deepEqual(dispatchOrder, ['user details']);
-
-            dispatchOrder = [];
-            router.dispatchRequest('/employee/details', {}, responseObj);
-            assert.deepEqual(dispatchOrder, ['employee details']);
+            assert.deepEqual(dispatchOrder, ['error']);
         });
+
+        */
 
         it('should stop request processing and call error handling middleware on an error from middleware', function() {
             var router = new Router();
             var dispatchOrder = [];
 
-            router.registerErrorHandlingMiddeware(function(error) {
+            router.registerErrorHandlingMiddleware(function(error) {
                 dispatchOrder.push('error');
                 assert.equal(error.name, 'Error');
                 assert.equal(error.message, 'middleware');
@@ -611,10 +538,9 @@ describe('Router', function() {
         });
 
         it('should stop request processing and call error handling middleware on an error from endpoint', function() {
-            var router = new Router();
             var dispatchOrder = [];
 
-            router.registerErrorHandlingMiddeware(function(error) {
+            router.registerErrorHandlingMiddleware(function(error) {
                 dispatchOrder.push('error');
                 assert.equal(error.name, 'Error');
                 assert.equal(error.message, 'user');
@@ -634,33 +560,32 @@ describe('Router', function() {
                 dispatchOrder.push('user2');
             });
 
-            router.dispatchRequest('/user', {}, responseObj);
+            router.dispatchRequest('/user');
 
             assert.deepEqual(dispatchOrder, ['middleware', 'user1', 'error']);
         });
 
-        it('should throw an UnhandledRequestError when request is unhandled', function() {
-            var router = new Router();
+        it('should stop request processing and call error handling middleware on an error passed to next() call', function() {
             var dispatchOrder = [];
 
-            router.registerErrorHandlingMiddeware(function(error) {
+            router.registerErrorHandlingMiddleware(function(error) {
                 dispatchOrder.push('error');
-                assert.equal(error.name, 'UnhandledRequestError');
+                assert.equal(error.name, 'Error');
+                assert.equal(error.message, 'user');
             });
 
-            router.registerMiddleware(function(_req, _res, next) {
-                dispatchOrder.push('middleware');
-                next();
+            router.registerEndpoint('/user', function(_req, _res, next) {
+                dispatchOrder.push('user1');
+                next(new Error('user'));
             });
 
-            router.registerEndpoint('/user', function(_req, res, _next) {
-                dispatchOrder.push('user');
-                res.send();
+            router.registerEndpoint('/user', function(_req, _res, next) {
+                dispatchOrder.push('user2');
             });
 
-            router.dispatchRequest('/', {}, responseObj);
+            router.dispatchRequest('/user');
 
-            assert.deepEqual(dispatchOrder, ['error']);
+            assert.deepEqual(dispatchOrder, ['middleware', 'user1', 'error']);
         });
 
         it('should');
