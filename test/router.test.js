@@ -503,7 +503,7 @@ describe('Router', function() {
             var router = new Router();
             var dispatchOrder = [];
 
-            router.registerErrorHandlingMiddleware(function(error) {
+            router.registerErrorHandlingMiddleware('*', function(error) {
                 dispatchOrder.push('error');
                 assert.equal(error.name, 'Error');
                 assert.equal(error.message, 'middleware');
@@ -540,7 +540,7 @@ describe('Router', function() {
         it('should stop request processing and call error handling middleware on an error from endpoint', function() {
             var dispatchOrder = [];
 
-            router.registerErrorHandlingMiddleware(function(error) {
+            router.registerErrorHandlingMiddleware('*', function(error) {
                 dispatchOrder.push('error');
                 assert.equal(error.name, 'Error');
                 assert.equal(error.message, 'user');
@@ -568,7 +568,7 @@ describe('Router', function() {
         it('should stop request processing and call error handling middleware on an error passed to next() call', function() {
             var dispatchOrder = [];
 
-            router.registerErrorHandlingMiddleware(function(error) {
+            router.registerErrorHandlingMiddleware('*', function(error) {
                 dispatchOrder.push('error');
                 assert.equal(error.name, 'Error');
                 assert.equal(error.message, 'user');
@@ -587,8 +587,6 @@ describe('Router', function() {
 
             assert.deepEqual(dispatchOrder, ['middleware', 'user1', 'error']);
         });
-
-        it('should');
     });
 
     describe('registerMiddleware()', function() {
