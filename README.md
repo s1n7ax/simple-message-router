@@ -1,62 +1,125 @@
 # simple-router
-Simple Message Router is a message router which help you to organize `web sockets`, `chrome extension message passing` and more...There are similarities and dissimilarities between [ Router ](https://www.npmjs.com/package/router) and Simple Router. Like
 
-## API
-```js
-var Router = require('simple-router')
+Simple Message Router is a message router which help you to organize `web sockets`, `chrome extension message passing` and more...There are similarities and dissimilarities between [ Router ](https://www.npmjs.com/package/router) and Simple Router. Just like router, simple-message-router supports middleware but this has nothing to do with HTTP so there are no request methods (GET, POST, PUT, DELETE).
 
-var root = new Router();
+Mechanism of this library is simple. Middleware will run always first on a request dispatch and then endpoint/endpoints. On an error in any middleware or endpoint, error handling middleware will take the control.
 
-root.registerEndpoint('/', function(req, res, next) {
-    var data = {}
-    res.send(data)
-})
-
-var responseObj = {
-    send: function(data) {
-        // handle sending the response here
-    }
-}
-root.dispatchRequest('/', {}, responseObj)
+```
++----------------+
+|                |
+|  Middleware 1  |
+|                |
++-------+--------+
+        |
+        |
+        |            yes
+ error? +--------------------------+------------------------------+
+        |                          ^                              |
+        |no                        |                              |
+        v                          |                              v
++-------+--------+                 |              +---------------+---------------+
+|                |                 |              |                               |
+|  Middleware 2  |                 |              |  error handling middleware 1  |
+|                |                 |              |                               |
++-------+--------+                 |              +---------------+---------------+
+        |                          |                              |
+        |            yes           |                              |
+ error? +--------------------------+                              |
+        |                          ^                              |
+        |no                        |                              v
+        v                          |              +---------------+---------------+
++-------+--------+                 |              |                               |
+|                |                 |              |  error handling middleware 2  |
+|    Endpoint    |                 |              |                               |
+|                |                 |              +-------------------------------+
++-------+--------+                 |
+        |                          |
+ error? |            yes           |
+        +--------------------------+
 ```
 
-## Middleware
-Middleware will provide a way to preprocess the requests before it goes through it's endpoint.
+## API
 
-**Middleware will always run before the endpoint/endpoints. First to register, will run first when a request is dispatched**
+Clear API name are really important IMO. So Following are the APIs, and what they do is pretty clear.
 
 ```js
-var Router = require('simple-router')
+var Router = require('simple-messaging-router');
 
 var root = new Router();
 
 root.registerMiddleware(function(req, res, next) {
-    console.log('middleware')
-    next()
-})
+    console.log('middleware');
+});
 
 root.registerEndpoint('/', function(req, res, next) {
-    console.log('endpoint')
-})
+    var data = doSomeStuff();
+    console.log('endpoint');
+    res(data);
 
-var responseObj = {
-    send: function(data) {
-        // handle sending the response here
-    }
-}
-root.dispatchRequest('/', {}, responseObj)
+    // just to invoke error handling middleware
+    throw new Error();
+});
+
+root.registerErrorHandlingMiddleware('*', function(req, res, next, error) {
+    console.log(
+        'error handling middleware::i got called because an error is thrown'
+    );
+});
+
+var request = {};
+var response = function(data) {
+    // implement the send response stuff here
+};
+
+root.dispatchRequest('/', request, response);
 ```
+
+OUTPUT:
+
+```
+> middleware
+> endpoint
+> error handling middleware::i got called because an error is thrown
+```
+
+## Middleware
+
+Middleware will provide a way to preprocess the requests before it goes through it's endpoint.
+
+**Middleware will always run before the endpoint/endpoints. First to register, will run first when a request is dispatched**
+
+**IF you didn't call next() within middleware, the request processing will never make to the endpoint**
+
+```js
+var Router = require('simple-messaging-router');
+
+var root = new Router();
+
+root.registerMiddleware(function(req, res, next) {
+    console.log('middleware');
+    next();
+});
+
+root.registerEndpoint('/', function(req, res, next) {
+    console.log('endpoint');
+});
+
+root.dispatchRequest('/');
+```
+
 **output:**
+
 ```
 > middleware
 > endpoint
 ```
 
 ## Nested Routers
+
 Yes, nested routers are possible!
 
 ```js
-var Router = require('simple-router')
+var Router = require('simple-messaging-router');
 
 var root = new Router();
 var user = new Router();
@@ -65,20 +128,103 @@ root.registerRouter('/user', user);
 
 user.registerEndpoint('/', function(req, res, next) {
     var user = getUserDetails(req.data);
-    console.log('user::root')
-    res.send(user)
-})
+    console.log('user::root');
+    res(user);
+});
 
-var responseObj = {
-    send: function(data) {
-        // handle sending the response here
-    }
-}
+var request = {};
+var response = function(data) {
+    // implement the send response stuff here
+};
 
-root.dispatchRequest('/user', {}, responseObj)
+root.dispatchRequest('/user', request, response);
 ```
 
-**output:**
+**OUTPUT:**
+
 ```
 > user::root
+```
+
+## Error Handling
+
+There are two ways to throw an error within the router.
+
+```js
+var Router = require('simple-messaging-router');
+
+var root = new Router();
+
+root.registerErrorHandlingMiddleware('*', function(req, res, next, error) {
+    console.log(error.message);
+});
+
+root.registerEndpoint('/throw', function() {
+    throw new Error('throw');
+});
+
+root.registerEndpoint('/pass_to_next', function(req, res, next) {
+    setTimeout(function() {
+        next(new Error('pass_to_next'));
+    }, 1000);
+});
+
+root.dispatchRequest('/throw');
+root.dispatchRequest('/pass_to_next');
+```
+
+**OUTPUT:**
+
+```
+> throw
+> pass_to_next
+```
+
+There are two ways to organize error handling middleware.
+
+-   '\*' will run on any error (or simply any `next` call with an truthy argument)
+-   '\<type>' will run on \<type> of errors
+
+**Errors in nested routers will fallback until the root router unless it's being handled in between**
+
+**So the way error handling middleware are identifying is the name of the error is the name property (error.name).**
+
+```js
+var Router = require('simple-messaging-router');
+
+var root = new Router();
+
+root.registerErrorHandlingMiddleware('*', function() {
+    console.log('Any (*) Error');
+});
+
+root.registerErrorHandlingMiddleware('Error', function() {
+    console.log('Error');
+});
+
+root.registerErrorHandlingMiddleware('TypeError', function() {
+    console.log('TypeError');
+});
+
+root.registerEndpoint('/error', function() {
+    throw new Error();
+});
+
+root.registerEndpoint('/typeError', function() {
+    throw new TypeError();
+});
+
+root.dispatchRequest('/error');
+console.log('-------------');
+root.dispatchRequest('/typeError');
+```
+
+**OUTPUT:**
+
+```
+> Any (*) Error
+> Error
+> -------------
+> Any (*) Error
+> TypeError
 ```
