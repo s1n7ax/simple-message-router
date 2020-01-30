@@ -431,82 +431,19 @@ describe('Router', function() {
             ]);
         });
 
-        /** @todo
-         * commenting this out temporary
-         * error handling still pending
-         *  
-        it('should throw on unhandled requests if throwUnhandled is true', function() {
-            var router = new Router({
-                throwUnhandled: true
-            });
-            var dispatchOrder = [];
-            router.registerMiddleware(function(_req, _res, next) {
-                dispatchOrder.push('middleware');
-                next();
-            });
-
-            router.registerEndpoint('/user', function() {
-                dispatchOrder.push('user');
-            });
-
-            assert.throws(function() {
-                router.dispatchRequest('/');
-            }, UnhandledRequestError);
-        });
-
-        it('should not throw on unhandled requests if throwUnhandled is false', function() {
-            var dispatchOrder = [];
-
-            router.registerMiddleware(function(_req, _res, next) {
-                dispatchOrder.push('middleware');
-                next();
-            });
-
-            router.registerEndpoint('/user', function(_req, res, _next) {
-                dispatchOrder.push('user');
-                res.send();
-            });
-
-            assert.doesNotThrow(function() {
-                router.dispatchRequest('/');
-            });
-        });
-
-
-        it('should throw an UnhandledRequestError when request is unhandled', function() {
-            var router = new Router();
-            var dispatchOrder = [];
-
-            router.registerErrorHandlingMiddleware(function(error) {
-                dispatchOrder.push('error');
-                assert.equal(error.name, 'UnhandledRequestError');
-            });
-
-            router.registerMiddleware(function(_req, _res, next) {
-                dispatchOrder.push('middleware');
-                next();
-            });
-
-            router.registerEndpoint('/user', function(_req, res, _next) {
-                dispatchOrder.push('user');
-                res.send();
-            });
-
-            router.dispatchRequest('/', {}, responseObj);
-
-            assert.deepEqual(dispatchOrder, ['error']);
-        });
-
-        */
-
         it('should stop request processing and call error handling middleware on an error from middleware', function() {
             var router = new Router();
             var dispatchOrder = [];
 
-            router.registerErrorHandlingMiddleware('*', function(error) {
+            router.registerErrorHandlingMiddleware('*', function(
+                req,
+                res,
+                next,
+                error
+            ) {
                 dispatchOrder.push('error');
                 assert.equal(error.name, 'Error');
-                assert.equal(error.message, 'middleware');
+                assert.equal(error.message, 'middleware2');
             });
 
             router.registerMiddleware(function(_req, _res, next) {
@@ -514,9 +451,9 @@ describe('Router', function() {
                 next();
             });
 
-            router.registerMiddleware(function(_req, _res, _next) {
+            router.registerMiddleware(function(_req, _res, next) {
                 dispatchOrder.push('middleware2');
-                throw new Error('middleware');
+                throw new Error('middleware2');
             });
 
             router.registerMiddleware(function(_req, _res, next) {
@@ -540,7 +477,12 @@ describe('Router', function() {
         it('should stop request processing and call error handling middleware on an error from endpoint', function() {
             var dispatchOrder = [];
 
-            router.registerErrorHandlingMiddleware('*', function(error) {
+            router.registerErrorHandlingMiddleware('*', function(
+                _req,
+                _res,
+                _next,
+                error
+            ) {
                 dispatchOrder.push('error');
                 assert.equal(error.name, 'Error');
                 assert.equal(error.message, 'user');
@@ -551,7 +493,7 @@ describe('Router', function() {
                 next();
             });
 
-            router.registerEndpoint('/user', function(_req, _res, next) {
+            router.registerEndpoint('/user', function(_req, _res, _next) {
                 dispatchOrder.push('user1');
                 throw new Error('user');
             });
@@ -568,10 +510,20 @@ describe('Router', function() {
         it('should stop request processing and call error handling middleware on an error passed to next() call', function() {
             var dispatchOrder = [];
 
-            router.registerErrorHandlingMiddleware('*', function(error) {
+            router.registerErrorHandlingMiddleware('*', function(
+                _req,
+                _res,
+                _next,
+                error
+            ) {
                 dispatchOrder.push('error');
                 assert.equal(error.name, 'Error');
                 assert.equal(error.message, 'user');
+            });
+
+            router.registerMiddleware(function(_req, _res, next) {
+                dispatchOrder.push('middleware');
+                next();
             });
 
             router.registerEndpoint('/user', function(_req, _res, next) {
@@ -579,13 +531,126 @@ describe('Router', function() {
                 next(new Error('user'));
             });
 
-            router.registerEndpoint('/user', function(_req, _res, next) {
+            router.registerEndpoint('/user', function(_req, _res, _next) {
                 dispatchOrder.push('user2');
             });
 
             router.dispatchRequest('/user');
 
             assert.deepEqual(dispatchOrder, ['middleware', 'user1', 'error']);
+        });
+
+        it('should throw the error if an error thrown from error handling middleware', function() {
+            router.registerErrorHandlingMiddleware('*', function(
+                _req,
+                _res,
+                _next,
+                _error
+            ) {
+                throw new Error('error handling middleware');
+            });
+
+            router.registerMiddleware(function(_req, _res) {
+                throw new Error('middleware');
+            });
+
+            assert.throws(function() {
+                router.dispatchRequest('/');
+            });
+        });
+
+        it('should pass the error to next error handling middleware on an error', function() {
+            var dispatchOrder = [];
+
+            router.registerErrorHandlingMiddleware('*', function(
+                _req,
+                _res,
+                next,
+                _error
+            ) {
+                dispatchOrder.push('error handling middleware 1');
+                next(new TypeError());
+            });
+
+            router.registerErrorHandlingMiddleware('*', function(
+                _req,
+                _res,
+                _next,
+                _error
+            ) {
+                dispatchOrder.push('error handling middleware 2');
+            });
+
+            router.registerMiddleware(function(_req, _res) {
+                dispatchOrder.push('middleware');
+                throw new Error('middleware');
+            });
+
+            router.dispatchRequest('/');
+            assert.deepEqual(dispatchOrder, [
+                'middleware',
+                'error handling middleware 1',
+                'error handling middleware 2'
+            ]);
+        });
+
+        it('should pass the error to correct error handler', function() {
+            var dispatchOrder = [];
+
+            router.registerErrorHandlingMiddleware('*', function(
+                _req,
+                _res,
+                next,
+                error
+            ) {
+                dispatchOrder.push('Any 1');
+                next();
+            });
+
+            router.registerErrorHandlingMiddleware('*', function(
+                _req,
+                _res,
+                next,
+                _error
+            ) {
+                dispatchOrder.push('Any 2');
+                next();
+            });
+
+            router.registerErrorHandlingMiddleware('TypeError', function(
+                _req,
+                _res,
+                next,
+                _error
+            ) {
+                dispatchOrder.push('TypeError');
+                next();
+            });
+
+            router.registerErrorHandlingMiddleware('Error', function(
+                _req,
+                _res,
+                next,
+                _error
+            ) {
+                dispatchOrder.push('Error');
+                next();
+            });
+
+            router.registerEndpoint('/typeError', function(_req, _res, _next) {
+                throw new TypeError();
+            });
+
+            router.registerEndpoint('/error', function(_req, _res, _next) {
+                throw new Error();
+            });
+
+            router.dispatchRequest('/typeError');
+            assert.deepEqual(dispatchOrder, ['Any 1', 'Any 2', 'TypeError']);
+            dispatchOrder = [];
+
+            router.dispatchRequest('/error');
+            assert.deepEqual(dispatchOrder, ['Any 1', 'Any 2', 'Error']);
         });
     });
 

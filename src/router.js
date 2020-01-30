@@ -117,15 +117,18 @@ Router.prototype.dispatchRequest = function(path, req, res) {
 
     var getNext = getNextMiddleware;
 
-    function handleIfError(error) {
-        if (error) {
-            getNext = getNextErrorHandlingMiddleware;
-            currentHandler = 0;
-            getNext(error);
-            return true;
-        }
-
-        return false;
+    // return a function with error handling middleware fallback
+    function getWrappedNextWithErrorHandler(func) {
+        return function(error) {
+            try {
+                if (error) throw error;
+                func();
+            } catch (err) {
+                currentHandler = 0;
+                getNext = getNextErrorHandlingMiddleware;
+                getNext(err)();
+            }
+        };
     }
 
     // -------------- getNextMiddleware --------------
@@ -141,31 +144,9 @@ Router.prototype.dispatchRequest = function(path, req, res) {
             return getNext();
         }
 
-        // returns a function that calls the middleware
-        return function(error) {
-            if (!handleIfError(error)) nextMiddleware(req, res, getNext());
-        };
-    }
-
-    // -------------- getNextErrorHandlingMiddleware --------------
-    function getNextErrorHandlingMiddleware(error) {
-        while (
-            (nextErrorHandlingMiddleware = this.errorHandlingMiddleware[
-                currentHandler++
-            ])
-        ) {
-            if (nextErrorHandlingMiddleware.error === '*')
-                return function() {
-                    nextErrorHandlingMiddleware(req, res, getNext(), error);
-                };
-
-            if (nextErrorHandlingMiddleware.error === error.name)
-                return function() {
-                    nextErrorHandlingMiddleware(req, res, getNext());
-                };
-        }
-
-        return function() {};
+        return getWrappedNextWithErrorHandler(function() {
+            nextMiddleware(req, res, getNext());
+        });
     }
 
     // -------------- getNextEndpoint --------------
@@ -183,14 +164,9 @@ Router.prototype.dispatchRequest = function(path, req, res) {
 
                 nextPath = Paths.getFormattedPath(nextPath);
 
-                return function(error) {
-                    if (!handleIfError(error))
-                        nextStackItem.router.dispatchRequest(
-                            nextPath,
-                            req,
-                            res
-                        );
-                };
+                return getWrappedNextWithErrorHandler(function() {
+                    nextStackItem.router.dispatchRequest(nextPath, req, res);
+                });
             }
 
             // IF endpoint, full path matching should be done
@@ -198,16 +174,43 @@ Router.prototype.dispatchRequest = function(path, req, res) {
                 nextStackItem.callback &&
                 Paths.matchPaths(path, nextStackItem.path)
             ) {
-                return function(error) {
-                    if (!handleIfError(error))
-                        nextStackItem.callback(req, res, getNext());
-                };
+                return getWrappedNextWithErrorHandler(function(error) {
+                    nextStackItem.callback(req, res, getNext());
+                });
             }
         }
 
-        return function(error) {
-            handleIfError(error);
-        };
+        return getWrappedNextWithErrorHandler(function(error) {});
+    }
+
+    // -------------- getNextErrorHandlingMiddleware --------------
+    function getNextErrorHandlingMiddleware(error) {
+        while (
+            (nextErrorHandlingMiddleware = this.errorHandlingMiddleware[
+                currentHandler++
+            ])
+        ) {
+            if (nextErrorHandlingMiddleware.error === '*')
+                return function() {
+                    nextErrorHandlingMiddleware.middleware(
+                        req,
+                        res,
+                        getNext(error),
+                        error
+                    );
+                };
+
+            if (nextErrorHandlingMiddleware.error === error.name)
+                return function() {
+                    nextErrorHandlingMiddleware.middleware(
+                        req,
+                        res,
+                        getNext(error)
+                    );
+                };
+        }
+
+        return function() {};
     }
 
     // start dispatching
