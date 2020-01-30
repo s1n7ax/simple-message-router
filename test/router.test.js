@@ -652,6 +652,37 @@ describe('Router', function() {
             router.dispatchRequest('/error');
             assert.deepEqual(dispatchOrder, ['Any 1', 'Any 2', 'Error']);
         });
+
+        it('should pass an error in nested router until the root router', function() {
+            var root = new Router();
+            var nested1 = new Router();
+            var nested2 = new Router();
+            var dispatchOrder = [];
+
+            root.registerErrorHandlingMiddleware('*', function() {
+                dispatchOrder.push('root::errorHandler');
+            });
+
+            nested2.registerMiddleware(function(_req, _res, next) {
+                dispatchOrder.push('nested2::middleware');
+                next();
+            });
+
+            nested2.registerEndpoint('/', function() {
+                dispatchOrder.push('nested2::endpoint');
+                throw new Error();
+            });
+
+            nested1.registerRouter('/', nested2);
+            root.registerRouter('/nested', nested1);
+            root.dispatchRequest('/nested');
+
+            assert.deepEqual(dispatchOrder, [
+                'nested2::middleware',
+                'nested2::endpoint',
+                'root::errorHandler'
+            ]);
+        });
     });
 
     describe('registerMiddleware()', function() {

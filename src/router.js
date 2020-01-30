@@ -210,7 +210,9 @@ Router.prototype.dispatchRequest = function(path, req, res) {
                 };
         }
 
-        return function() {};
+        return function() {
+            throw error;
+        };
     }
 
     // start dispatching
