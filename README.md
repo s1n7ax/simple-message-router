@@ -2,7 +2,7 @@
 
 Simple Message Router is a message router which help you to organize `web sockets`, `chrome extension message passing` and more...There are similarities and dissimilarities between [ Router ](https://www.npmjs.com/package/router) and Simple Router. Just like router, simple-message-router supports middleware but this has nothing to do with HTTP so there are no request methods (GET, POST, PUT, DELETE).
 
-Mechanism of this library is simple. Middleware will run always first on a request dispatch and then endpoint/endpoints. On an error in any middleware or endpoint, error handling middleware will take the control.
+Mechanism of this library is simple. Middleware will run always first on a request dispatch and then endpoint/endpoints. On an error in any middleware or endpoint, error handlers will take the control.
 
 ```
 +----------------+
@@ -19,7 +19,7 @@ Mechanism of this library is simple. Middleware will run always first on a reque
         v                          |                              v
 +-------+--------+                 |              +---------------+---------------+
 |                |                 |              |                               |
-|  Middleware 2  |                 |              |  error handling middleware 1  |
+|  Middleware 2  |                 |              |  error handlers 1  |
 |                |                 |              |                               |
 +-------+--------+                 |              +---------------+---------------+
         |                          |                              |
@@ -29,7 +29,7 @@ Mechanism of this library is simple. Middleware will run always first on a reque
         |no                        |                              v
         v                          |              +---------------+---------------+
 +-------+--------+                 |              |                               |
-|                |                 |              |  error handling middleware 2  |
+|                |                 |              |  error handlers 2  |
 |    Endpoint    |                 |              |                               |
 |                |                 |              +-------------------------------+
 +-------+--------+                 |
@@ -56,14 +56,12 @@ root.registerEndpoint('/', function(req, res, next) {
     console.log('endpoint');
     res(data);
 
-    // just to invoke error handling middleware
+    // just to invoke error handlers
     throw new Error();
 });
 
-root.registerErrorHandlingMiddleware('*', function(req, res, next, error) {
-    console.log(
-        'error handling middleware::i got called because an error is thrown'
-    );
+root.registerErrorHandler('*', function(req, res, next, error) {
+    console.log('error handlers::i got called because an error is thrown');
 });
 
 var request = {};
@@ -79,7 +77,7 @@ OUTPUT:
 ```
 > middleware
 > endpoint
-> error handling middleware::i got called because an error is thrown
+> error handlers::i got called because an error is thrown
 ```
 
 ## Middleware
@@ -155,7 +153,7 @@ var Router = require('simple-messaging-router');
 
 var root = new Router();
 
-root.registerErrorHandlingMiddleware('*', function(req, res, next, error) {
+root.registerErrorHandler('*', function(req, res, next, error) {
     console.log(error.message);
 });
 
@@ -180,29 +178,29 @@ root.dispatchRequest('/pass_to_next');
 > pass_to_next
 ```
 
-There are two ways to organize error handling middleware.
+There are two ways to organize error handlers.
 
 -   '\*' will run on any error (or simply any `next` call with an truthy argument)
 -   '\<type>' will run on \<type> of errors
 
 **Errors in nested routers will fallback until the root router unless it's being handled in between**
 
-**So the way error handling middleware are identifying is the name of the error is the name property (error.name).**
+**So the way error handlers are identifying is the name of the error is the name property (error.name).**
 
 ```js
 var Router = require('simple-messaging-router');
 
 var root = new Router();
 
-root.registerErrorHandlingMiddleware('*', function() {
+root.registerErrorHandler('*', function() {
     console.log('Any (*) Error');
 });
 
-root.registerErrorHandlingMiddleware('Error', function() {
+root.registerErrorHandler('Error', function() {
     console.log('Error');
 });
 
-root.registerErrorHandlingMiddleware('TypeError', function() {
+root.registerErrorHandler('TypeError', function() {
     console.log('TypeError');
 });
 

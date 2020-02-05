@@ -431,16 +431,11 @@ describe('Router', function() {
             ]);
         });
 
-        it('should stop request processing and call error handling middleware on an error from middleware', function() {
+        it('should stop request processing and call error handlers on an error from middleware', function() {
             var router = new Router();
             var dispatchOrder = [];
 
-            router.registerErrorHandlingMiddleware('*', function(
-                req,
-                res,
-                next,
-                error
-            ) {
+            router.registerErrorHandler('*', function(req, res, next, error) {
                 dispatchOrder.push('error');
                 assert.equal(error.name, 'Error');
                 assert.equal(error.message, 'middleware2');
@@ -474,10 +469,10 @@ describe('Router', function() {
             ]);
         });
 
-        it('should stop request processing and call error handling middleware on an error from endpoint', function() {
+        it('should stop request processing and call error handlers on an error from endpoint', function() {
             var dispatchOrder = [];
 
-            router.registerErrorHandlingMiddleware('*', function(
+            router.registerErrorHandler('*', function(
                 _req,
                 _res,
                 _next,
@@ -507,10 +502,10 @@ describe('Router', function() {
             assert.deepEqual(dispatchOrder, ['middleware', 'user1', 'error']);
         });
 
-        it('should stop request processing and call error handling middleware on an error passed to next() call', function() {
+        it('should stop request processing and call error handlers on an error passed to next() call', function() {
             var dispatchOrder = [];
 
-            router.registerErrorHandlingMiddleware('*', function(
+            router.registerErrorHandler('*', function(
                 _req,
                 _res,
                 _next,
@@ -540,14 +535,14 @@ describe('Router', function() {
             assert.deepEqual(dispatchOrder, ['middleware', 'user1', 'error']);
         });
 
-        it('should throw the error if an error thrown from error handling middleware', function() {
-            router.registerErrorHandlingMiddleware('*', function(
+        it('should throw the error if an error thrown from error handlers', function() {
+            router.registerErrorHandler('*', function(
                 _req,
                 _res,
                 _next,
                 _error
             ) {
-                throw new Error('error handling middleware');
+                throw new Error('error handlers');
             });
 
             router.registerMiddleware(function(_req, _res) {
@@ -559,26 +554,26 @@ describe('Router', function() {
             });
         });
 
-        it('should pass the error to next error handling middleware on an error', function() {
+        it('should pass the error to next error handlers on an error', function() {
             var dispatchOrder = [];
 
-            router.registerErrorHandlingMiddleware('*', function(
+            router.registerErrorHandler('*', function(
                 _req,
                 _res,
                 next,
                 _error
             ) {
-                dispatchOrder.push('error handling middleware 1');
+                dispatchOrder.push('error handlers 1');
                 next(new TypeError());
             });
 
-            router.registerErrorHandlingMiddleware('*', function(
+            router.registerErrorHandler('*', function(
                 _req,
                 _res,
                 _next,
                 _error
             ) {
-                dispatchOrder.push('error handling middleware 2');
+                dispatchOrder.push('error handlers 2');
             });
 
             router.registerMiddleware(function(_req, _res) {
@@ -589,25 +584,20 @@ describe('Router', function() {
             router.dispatchRequest('/');
             assert.deepEqual(dispatchOrder, [
                 'middleware',
-                'error handling middleware 1',
-                'error handling middleware 2'
+                'error handlers 1',
+                'error handlers 2'
             ]);
         });
 
         it('should pass the error to correct error handler', function() {
             var dispatchOrder = [];
 
-            router.registerErrorHandlingMiddleware('*', function(
-                _req,
-                _res,
-                next,
-                error
-            ) {
+            router.registerErrorHandler('*', function(_req, _res, next, error) {
                 dispatchOrder.push('Any 1');
                 next();
             });
 
-            router.registerErrorHandlingMiddleware('*', function(
+            router.registerErrorHandler('*', function(
                 _req,
                 _res,
                 next,
@@ -617,7 +607,7 @@ describe('Router', function() {
                 next();
             });
 
-            router.registerErrorHandlingMiddleware('TypeError', function(
+            router.registerErrorHandler('TypeError', function(
                 _req,
                 _res,
                 next,
@@ -626,7 +616,7 @@ describe('Router', function() {
                 dispatchOrder.push('TypeError');
             });
 
-            router.registerErrorHandlingMiddleware('Error', function(
+            router.registerErrorHandler('Error', function(
                 _req,
                 _res,
                 next,
@@ -657,7 +647,7 @@ describe('Router', function() {
             var nested2 = new Router();
             var dispatchOrder = [];
 
-            root.registerErrorHandlingMiddleware('*', function() {
+            root.registerErrorHandler('*', function() {
                 dispatchOrder.push('root::errorHandler');
             });
 

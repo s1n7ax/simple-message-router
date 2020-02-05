@@ -5,7 +5,7 @@ var Paths = require('./paths');
  */
 function Router() {
     this.middleware = [];
-    this.errorHandlingMiddleware = [];
+    this.errorHandlers = [];
     this.stack = [];
 }
 
@@ -30,22 +30,19 @@ Router.prototype.registerMiddleware = function(middleware) {
 /**
  * add error middleware subscriber
  * first to register will run first
- * error handling middleware will run on an error occurs in middleware or endpoints
+ * error handlers will run on an error occurs in middleware or endpoints
  *
  * @param {string} errorName - pass error name to get triggered only on that error
  * IF middleware should run on any error occurrence, pass "*" instead
  * @param {(req, res, next, error) => void} middleware
  */
-Router.prototype.registerErrorHandlingMiddleware = function(
-    errorName,
-    middleware
-) {
+Router.prototype.registerErrorHandler = function(errorName, middleware) {
     if (typeof errorName !== 'string')
         throw new TypeError(
             `errorName should be a string but passed::${errorName}`
         );
 
-    this.errorHandlingMiddleware.push({
+    this.errorHandlers.push({
         error: errorName,
         middleware: middleware
     });
@@ -113,11 +110,11 @@ Router.prototype.dispatchRequest = function(path, req, res) {
 
     getNextMiddleware = getNextMiddleware.bind(this);
     getNextEndpoint = getNextEndpoint.bind(this);
-    getNextErrorHandlingMiddleware = getNextErrorHandlingMiddleware.bind(this);
+    getNextErrorHandler = getNextErrorHandler.bind(this);
 
     var getNext = getNextMiddleware;
 
-    // return a function with error handling middleware fallback
+    // return a function with error handlers fallback
     function getWrappedNextWithErrorHandler(func) {
         return function(error) {
             try {
@@ -125,7 +122,7 @@ Router.prototype.dispatchRequest = function(path, req, res) {
                 func();
             } catch (err) {
                 currentHandler = 0;
-                getNext = getNextErrorHandlingMiddleware;
+                getNext = getNextErrorHandler;
                 getNext(err)();
             }
         };
@@ -183,16 +180,12 @@ Router.prototype.dispatchRequest = function(path, req, res) {
         return getWrappedNextWithErrorHandler(function(error) {});
     }
 
-    // -------------- getNextErrorHandlingMiddleware --------------
-    function getNextErrorHandlingMiddleware(error) {
-        while (
-            (nextErrorHandlingMiddleware = this.errorHandlingMiddleware[
-                currentHandler++
-            ])
-        ) {
-            if (nextErrorHandlingMiddleware.error === '*')
+    // -------------- getNextErrorHandler --------------
+    function getNextErrorHandler(error) {
+        while ((nextErrorHandler = this.errorHandlers[currentHandler++])) {
+            if (nextErrorHandler.error === '*')
                 return function() {
-                    nextErrorHandlingMiddleware.middleware(
+                    nextErrorHandler.middleware(
                         req,
                         res,
                         getNext(error),
@@ -200,13 +193,9 @@ Router.prototype.dispatchRequest = function(path, req, res) {
                     );
                 };
 
-            if (nextErrorHandlingMiddleware.error === error.name)
+            if (nextErrorHandler.error === error.name)
                 return function() {
-                    nextErrorHandlingMiddleware.middleware(
-                        req,
-                        res,
-                        getNext(error)
-                    );
+                    nextErrorHandler.middleware(req, res, getNext(error));
                 };
         }
 
