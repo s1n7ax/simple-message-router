@@ -624,7 +624,6 @@ describe('Router', function() {
                 _error
             ) {
                 dispatchOrder.push('TypeError');
-                next();
             });
 
             router.registerErrorHandlingMiddleware('Error', function(
@@ -634,7 +633,6 @@ describe('Router', function() {
                 _error
             ) {
                 dispatchOrder.push('Error');
-                next();
             });
 
             router.registerEndpoint('/typeError', function(_req, _res, _next) {
@@ -653,7 +651,7 @@ describe('Router', function() {
             assert.deepEqual(dispatchOrder, ['Any 1', 'Any 2', 'Error']);
         });
 
-        it('should pass an error in nested router until the root router', function() {
+        it('should pass unhandled errors in nested router until the root router', function() {
             var root = new Router();
             var nested1 = new Router();
             var nested2 = new Router();
