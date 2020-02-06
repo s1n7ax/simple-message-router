@@ -1,4 +1,4 @@
-# simple-router
+# simple-message-router
 
 Simple Message Router is a message router which help you to organize `web sockets`, `chrome extension message passing` and more...There are similarities and dissimilarities between [ Router ](https://www.npmjs.com/package/router) and Simple Router. Just like router, simple-message-router supports middleware but this has nothing to do with HTTP so there are no request methods (GET, POST, PUT, DELETE).
 
