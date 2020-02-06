@@ -1,6 +1,5 @@
 var assert = require('assert');
-var Router = require('../src/router');
-var UnhandledRequestError = Router.UnhandledRequestError;
+var Router = require('../');
 
 describe('Router', function() {
     var router;

@@ -1,7 +1,7 @@
 var Paths = require('./paths');
 
 /**
- * Router handles registering and invoking endpoints/middleware/nested routers
+ * Router handles registering and invoking endpoints/middleware/error handlers
  */
 function Router() {
     this.middleware = [];
@@ -208,11 +208,4 @@ Router.prototype.dispatchRequest = function(path, req, res) {
     getNext()();
 };
 
-function UnhandledRequestError(message) {
-    this.name = 'UnhandledRequestError';
-    this.message = message || '';
-}
-UnhandledRequestError.prototype = Error.prototype;
-
 module.exports = Router;
-module.exports.UnhandledRequestError = UnhandledRequestError;
