@@ -1,8 +1,8 @@
 # simple-message-router
 
-Simple Message Router is a message router which help you to organize `web sockets`, `chrome extension message passing` and more...There are similarities and dissimilarities between [ Router ](https://www.npmjs.com/package/router) and Simple Router. Just like router, simple-message-router supports middleware but this has nothing to do with HTTP so there are no request methods (GET, POST, PUT, DELETE).
+Simple Message Router is a message router that helps you to organize `web sockets`, `chrome extension message passing` and more...There are similarities and dissimilarities between [ Router ](https://www.npmjs.com/package/router) and Simple Router. Just like `router`, `simple-message-router` supports middleware but this has nothing to do with HTTP so there are no request methods (GET, POST, PUT, DELETE).
 
-Mechanism of this library is simple. Middleware will run always first on a request dispatch and then endpoint/endpoints. On an error in any middleware or endpoint, error handlers will take the control.
+The mechanism of this library is simple. Middleware will run always first on a request dispatch and then endpoint/endpoints. On an error in any middleware or endpoint, error handlers will take the control.
 
 ```
 +----------------+
@@ -40,7 +40,7 @@ Mechanism of this library is simple. Middleware will run always first on a reque
 
 ## API
 
-Clear API name are really important IMO. So Following are the APIs, and what they do is pretty clear.
+Clear API names are really important so following are the APIs, and what they do is pretty clear.
 
 ```js
 var Router = require('simple-messaging-router');
