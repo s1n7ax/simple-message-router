@@ -19,7 +19,7 @@ Mechanism of this library is simple. Middleware will run always first on a reque
         v                          |                              v
 +-------+--------+                 |              +---------------+---------------+
 |                |                 |              |                               |
-|  Middleware 2  |                 |              |  error handlers 1  |
+|  Middleware 2  |                 |              |        error handlers 1       |
 |                |                 |              |                               |
 +-------+--------+                 |              +---------------+---------------+
         |                          |                              |
@@ -29,7 +29,7 @@ Mechanism of this library is simple. Middleware will run always first on a reque
         |no                        |                              v
         v                          |              +---------------+---------------+
 +-------+--------+                 |              |                               |
-|                |                 |              |  error handlers 2  |
+|                |                 |              |        error handlers 2       |
 |    Endpoint    |                 |              |                               |
 |                |                 |              +-------------------------------+
 +-------+--------+                 |
