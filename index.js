@@ -1,5 +1,5 @@
 const Router = require('./src/router');
-const Path = require('./src/paths');
+const Paths = require('./src/paths');
 
 module.exports = Router;
-module.exports.Path = Path;
+module.exports.Paths = Paths;
