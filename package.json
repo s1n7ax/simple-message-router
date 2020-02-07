@@ -1,14 +1,20 @@
 {
     "name": "simple-message-router",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "description": "Simple Router Module that has nothing to do with HTTP",
     "main": "index.js",
+    "scripts": {
+        "test": "mocha"
+    },
     "repository": "git@github.com:s1n7ax/simple-message-router.git",
     "author": "s1n7ax <srineshnisala@gmail.com>",
     "license": "MIT",
     "private": false,
-
     "devDependencies": {
         "mocha": "^7.0.0"
-    }
+    },
+    "keywords": [
+        "router",
+        "message-router"
+    ]
 }
